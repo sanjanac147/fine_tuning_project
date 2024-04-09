@@ -19,6 +19,13 @@ def print_trainable_parameters(model):
     )
 
 
+metric = evaluate.load("accuracy")
+
+def compute_metrics(eval_pred):
+    predictions = np.argmax(eval_pred.predictions, axis=1)
+    return metric.compute(predictions=predictions, references=eval_pred.label_ids)
+
+
 def main():
    
     try:
@@ -74,7 +81,7 @@ def main():
         label_names=["labels"],
     )
  
-    trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, None, evaluate.compute_metrics, None)
+    trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, None, compute_metrics, None)
 
     train_results = trainer.train()
 
