@@ -4,6 +4,8 @@ from ModelLoader import ModelFactory
 from trainFactory import TrainFactory
 from transformers import TrainingArguments
 import evaluate
+import torch
+from HyperParameterFactory import HyperParameterFactory
 
 def print_trainable_parameters(model):
     trainable_params = 0
@@ -16,34 +18,43 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param:.2f}"
     )
 
+
 def main():
-    # Load dataset
+   
     try:
         dataset_loader = DatasetFactory.get_dataset("vision_transformer")
         dataset = dataset_loader.get_dataset()
     except ValueError as e:
         print(f"Error: {e}")
-
-    # Split dataset
+        return 
+    
     splits = dataset.train_test_split(test_size=0.1)
     train_ds = splits["train"]
     val_ds = splits["test"]
 
-    # Load and apply preprocessing
+    
     model_checkpoint = "google/vit-base-patch16-224-in21k"
     preprocessing_loader = PreprocessingLoader(model_checkpoint)
     preprocessor = preprocessing_loader.get_preprocessor()
     train_ds.set_transform(preprocessor.preprocess_train)
     val_ds.set_transform(preprocessor.preprocess_val)
 
-    # Load model
+   
     model_loader = ModelFactory.create("vision_transformer")
     model = model_loader.get_model()
 
-    # Print trainable parameters
+    print("Before PEFT:")
     print_trainable_parameters(model)
 
-    # Configure training arguments
+    from peft import get_peft_model
+
+    peft_params = HyperParameterFactory.get_peft_parameters("lora")
+    lora_model = get_peft_model(model, **peft_params)
+
+  
+    print("After PEFT:")
+    print_trainable_parameters(lora_model)
+
     model_name = model_checkpoint.split("/")[-1]
     batch_size = 128
     args = TrainingArguments(
@@ -62,15 +73,11 @@ def main():
         metric_for_best_model="accuracy",
         label_names=["labels"],
     )
+ 
+    trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, None, evaluate.compute_metrics, None)
 
-    # Initialize trainer
-    trainer = TrainFactory.get_trainer(model, args, train_ds, val_ds, None, evaluate.compute_metrics, None)
-
-    # Start training
     train_results = trainer.train()
-    # Evaluate model
-    evaluation_results = trainer.evaluate(val_ds)
-    print(evaluation_results)
+
 
 if __name__ == "__main__":
     main()
