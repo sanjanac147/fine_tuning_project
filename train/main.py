@@ -1,49 +1,32 @@
+from transformers import TrainingArguments
+from TrainFactory import TrainFactory
 from dataset import DatasetFactory
 from preprocessing.PreprocessingFactory import ImagePreprocessor
 from model.ModelLoader import ModelFactory
-from TrainFactory import TrainFactory
-from transformers import TrainingArguments
 import evaluate
 
-def print_trainable_parameters(model):
-    trainable_params = 0
-    all_param = 0
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-    print(
-        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param:.2f}"
-    )
-
 def main():
-    # Load dataset
+
     try:
         dataset_loader = DatasetFactory.get_dataset("vision_transformer")
         dataset = dataset_loader.get_dataset()
+        
+        splits = dataset.train_test_split(test_size=0.1)
+        train_ds = splits["train"]
+        val_ds = splits["test"]
+
+        model_checkpoint = "google/vit-base-patch16-224-in21k"
+        preprocessing_loader = ImagePreprocessor(model_checkpoint)
+        preprocessor = preprocessing_loader.get_preprocessor()
+        train_ds.set_transform(preprocessor.preprocess_train)
+        val_ds.set_transform(preprocessor.preprocess_val)
     except ValueError as e:
         print(f"Error: {e}")
+        return
 
-    # Split dataset
-    splits = dataset.train_test_split(test_size=0.1)
-    train_ds = splits["train"]
-    val_ds = splits["test"]
-
-    # Load and apply preprocessing
-    model_checkpoint = "google/vit-base-patch16-224-in21k"
-    preprocessing_loader = ImagePreprocessor(model_checkpoint)
-    preprocessor = preprocessing_loader.get_preprocessor()
-    train_ds.set_transform(preprocessor.preprocess_train)
-    val_ds.set_transform(preprocessor.preprocess_val)
-
-    # Load model
     model_loader = ModelFactory.create("vision_transformer")
     model = model_loader.get_model()
 
-    # Print trainable parameters
-    print_trainable_parameters(model)
-
-    # Configure training arguments
     model_name = model_checkpoint.split("/")[-1]
     batch_size = 128
     args = TrainingArguments(
@@ -62,14 +45,12 @@ def main():
         metric_for_best_model="accuracy",
         label_names=["labels"],
     )
+    
+    trainer = TrainFactory.get_trainer(model, args, train_ds, val_ds, preprocessor.get_tokenizer())
 
-    # Initialize trainer
-    trainer = TrainFactory.get_trainer(model, args, train_ds, val_ds, None, evaluate.compute_metrics, None)
-
-    # Start training
     train_results = trainer.train()
     print(train_results)
-    # Evaluate model
+
     evaluation_results = trainer.evaluate(val_ds)
     print(evaluation_results)
 
