@@ -13,10 +13,12 @@ from torchvision.transforms import (
     Resize,
     ToTensor,
 )
-
+def initialize_image_processor(model_checkpoint):
+    return AutoImageProcessor.from_pretrained(model_checkpoint)
+    
 class ImagePreprocessor:
     def __init__(self, model_checkpoint):
-        self.image_processor = AutoImageProcessor.from_pretrained(model_checkpoint)
+        self.image_processor = initialize_image_processor(model_checkpoint)
         self.normalize = Normalize(mean=self.image_processor.image_mean, std=self.image_processor.image_std)
         self.train_transforms = Compose([
             RandomResizedCrop(self.image_processor.size["height"]),
