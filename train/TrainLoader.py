@@ -1,16 +1,28 @@
 from transformers import Trainer
 import torch
+metric = evaluate.load("accuracy")
 
 class TrainLoader:
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, compute_metrics, data_collator):
+    @staticmethod
+    def compute_metrics(eval_pred, metric):
+        predictions = np.argmax(eval_pred.predictions, axis=1)
+        return metric.compute(predictions=predictions, references=eval_pred.label_ids)
+
+    @staticmethod
+    def collate_fn(examples):
+        pixel_values = torch.stack([example["pixel_values"] for example in examples])
+        labels = torch.tensor([example["label"] for example in examples])
+        return {"pixel_values": pixel_values, "labels": labels}
+
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, metric):
         self.trainer = Trainer(
             model=model,
             args=args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
-            data_collator=data_collator,
+            compute_metrics=lambda eval_pred: self.compute_metrics(eval_pred, metric),
+            data_collator=self.collate_fn,
         )
 
     def train(self):
@@ -21,8 +33,3 @@ class TrainLoader:
 
     def get_trainer(self):
         return self.trainer
-
-    def collate_fn(self, examples):
-        pixel_values = torch.stack([example["pixel_values"] for example in examples])
-        labels = torch.tensor([example["label"] for example in examples])
-        return {"pixel_values": pixel_values, "labels": labels}
