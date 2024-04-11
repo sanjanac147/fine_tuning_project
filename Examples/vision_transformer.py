@@ -5,6 +5,7 @@ import model
 import hyper_parameters
 import train
 import preprocessing
+from preprocessing import initialize_image_processor
 import peft_techniques
 model_name = "vision_transformer"
 model_checkpoint = "google/vit-base-patch16-224-in21k"
@@ -87,16 +88,14 @@ args =TrainingArguments(
     f"{model_name}-finetuned-lora-food101",
     **general_params
 )
-# ---------------------------------------------------------------------------------------------
-# This we have not define anywhere will have to figure out where to add
-# ---------------------------------------------------------------------------------------------
+
 import numpy as np
 import evaluate
+image_processor = initialize_image_processor(model_checkpoint)
+trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, image_processor)
 
-trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, None)
-#===============================
 train_results = trainer.train()
-
+print(train_results)
 
 validation_results = trainer.evaluate(val_ds)
 
