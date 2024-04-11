@@ -93,38 +93,8 @@ args =TrainingArguments(
 import numpy as np
 import evaluate
 
-metric = evaluate.load("accuracy")
-
-
-def compute_metrics(eval_pred):
-    predictions = np.argmax(eval_pred.predictions, axis=1)
-    return metric.compute(predictions=predictions, references=eval_pred.label_ids)
-
-
-
-# -------------------------------------------------------------------------------------
-# This as much as I remember is defined inside the trian module
-# -------------------------------------------------------------------------------------
-
-
-import torch
-def collate_fn(examples):
-    pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    labels = torch.tensor([example["label"] for example in examples])
-    return {"pixel_values": pixel_values, "labels": labels}
-
-
-
-trainer = Trainer(
-    lora_model,
-    args,
-    train_dataset=train_ds,
-    eval_dataset=val_ds,
-    tokenizer=processor,
-    compute_metrics=compute_metrics,
-    data_collator=collate_fn,
-)
-
+trainer = TrainFactory.get_trainer(lora_model, args, train_ds, val_ds, None)
+#===============================
 train_results = trainer.train()
 
 
