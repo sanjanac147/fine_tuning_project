@@ -9,4 +9,4 @@ class HyperParameterFactory:
             raise ValueError("Unknown Peft Technique name provided.")
 
     def get_general_parameters(self,params):
-        return params
+        return LoRAHyperParameterSet.get_general_parameters(params)
