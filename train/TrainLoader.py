@@ -21,7 +21,7 @@ class TrainLoader:
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
-            compute_metrics=lambda eval_pred: self.compute_metrics(eval_pred, metric),
+            compute_metrics=self.compute_metrics, # check this 
             data_collator=self.collate_fn,
         )
 
